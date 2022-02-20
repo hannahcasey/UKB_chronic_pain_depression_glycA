@@ -12,9 +12,8 @@
 library(dplyr)
 library(ggplot2)
 library(patchwork)
-library(nlme)
 library(stringr)
-
+library(rebus)
 
 ## Save Shen's Function
 run_model <- function(ls.mod,mod.dat_short,mod.dat_long){
@@ -74,6 +73,8 @@ run_model <- function(ls.mod,mod.dat_short,mod.dat_long){
   
   return(tmp.res)
 }
+
+
 ## Load and tidy data
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load in NMR metabolomics data
@@ -100,7 +101,7 @@ UKB_NMR_glycA <- UKB_NMR_glycA[!is.na(UKB_NMR_glycA$glycA_1),]
 ## Load in assay data
 UKB_assay_results <- readRDS("/Volumes/GenScotDepression/data/ukb/phenotypes/fields/2020-09-phenotypes-ukb43743/AssayResults.rds")
 ## f.30710 = C-reactive protein
-## Extract ID column and columns pretaining to CRP measurment
+## Extract ID column and columns pertaining to CRP measurment
 UKB_assay_results_filtered <- cbind(UKB_assay_results[,1], UKB_assay_results[grepl("f.30710.", names(UKB_assay_results))])
 
 ## rename FID and CRP columns
@@ -175,7 +176,7 @@ UKB_structural_MRI_filtered <- UKB_structural_MRI_filtered %>%
   rename(f.eid = "UKB_structural_MRI[, 1]")
 
 ## Extract Freesurfer DKT
-rx_DK <- number_range(26721, 26922)
+rx_DK <- number_range(26721, 26921)
 rx_FA <- number_range(25488, 25514)
 rx_MA <- number_range(25515, 25541)
 rx_FA_dMRI <- number_range(25056, 25103)
@@ -228,15 +229,15 @@ UKB_imaging_MD_key <- UKB_imaging_MD_key %>%
          MD_value = V2)
 
 
-## Load in UKB DKW field ID key file
+## Load in UKB FIRST subcortical field ID key file
 UKB_subcortical_key <- read.csv("~/Desktop/PhD/projects/UKBCRPImagingPRS/resources/UKB_subcortical_field_IDs.csv", header = F)
 UKB_subcortical_key <- UKB_subcortical_key %>%
   rename(feild_ID = V1,
          subcortical_volume = V2)
 
-## Calculate lobar measures
-
-## Frontal lobe FIDs:
+## Calculate cortical lobar volume measures
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Frontal lobe volume FIDs:
 ## Superior frontal gyrus = 26815 + 26916
 ## rostralmiddlefrontal = 26814 + 26915
 ## Caudalmiddlefrontal = 26791 + 26892
@@ -259,7 +260,7 @@ UKB_imaging_glycA$frontal_lobe <- UKB_imaging_glycA$f.26815.2.0 + UKB_imaging_gl
 
 mean(UKB_imaging_glycA$frontal_lobe, na.rm = T)
 
-## Temporal lobe FIDs:
+## Temporal lobe volume FIDs:
 ## Insula= 26821 + 26922
 ## Superior temporal = 26817 + 26918
 ## transverse temporal = 26820 + 26921
@@ -279,7 +280,7 @@ UKB_imaging_glycA$temporal_lobe <- UKB_imaging_glycA$f.26821.2.0 + UKB_imaging_g
 
 mean(UKB_imaging_glycA$temporal_lobe, na.rm = T)
 
-## Parietal lobe:
+## Parietal volume lobe:
 ## Postcentral gyrus = 26809 + 26910
 ## paracentral cortex = 26804 + 26905
 ## Superior parietal cortex = 26816 + 26917
@@ -295,7 +296,7 @@ UKB_imaging_glycA$parietal_lobe <- UKB_imaging_glycA$f.26809.2.0 + UKB_imaging_g
 
 mean(UKB_imaging_glycA$parietal_lobe, na.rm = T)
 
-## Occipital lobe:
+## Occipital volume lobe:
 ## Lateral occipital cortex = 26798, 26899
 ## Cuneus = 26792, 26893
 ## Pericalcarine cortex = 26808, 26909
@@ -307,7 +308,7 @@ UKB_imaging_glycA$occipital_lobe <- UKB_imaging_glycA$f.26798.2.0 + UKB_imaging_
 
 mean(UKB_imaging_glycA$occipital_lobe, na.rm = T)
 
-## Cingulate lobe:
+## Cingulate volume lobe:
 ## Rostral ACC = 26813, 26914
 ## Caudal ACC = 26790, 26891
 ## Posterior cingulate cortex = 26810 + 26911
@@ -345,7 +346,7 @@ UKB_imaging_glycA_global_cortical_volume_outliers_removed <- UKB_imaging_glycA[-
 
 ## Statistical analysis
 ## Create dataframe to store glm output
-glm_glycA_cortical <- data.frame(cortical_volume=character(), beta=numeric(), std=numeric(), p.value=numeric(),
+glm_glycA_cortical_volume <- data.frame(cortical_volume=character(), beta=numeric(), std=numeric(), p.value=numeric(),
                                    p.adjust=numeric(), Lower_95CI=numeric(), Upper_95CI=numeric())
 
 
@@ -355,11 +356,11 @@ glm1 <- glm(global_cortical_volume  ~ glycA_1 + sex + BMI + assessment_centre_fi
 
 summary(glm1)
 
-glm_glycA_cortical[1,"cortical_volume"] <- "global_cortical_volume"
-glm_glycA_cortical[1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
-glm_glycA_cortical[1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
-glm_glycA_cortical[1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
-glm_glycA_cortical[1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
+glm_glycA_cortical_volume[1,"cortical_volume"] <- "global_cortical_volume"
+glm_glycA_cortical_volume[1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
+glm_glycA_cortical_volume[1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
+glm_glycA_cortical_volume[1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
+glm_glycA_cortical_volume[1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
 
 
 cortical_lobes <- c("frontal_lobe", "temporal_lobe", "parietal_lobe", "occipital_lobe", "cingulate_lobe")
@@ -376,19 +377,19 @@ for (i in 1:5){
   glm1 <- glm(as.formula(mod),
               data = UKB_imaging_glycA_lobar_outliers_removed)
   
-  glm_glycA_cortical[i+1,"cortical_volume"] <- cortical_lobes[i]
-  glm_glycA_cortical[i+1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
-  glm_glycA_cortical[i+1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
-  glm_glycA_cortical[i+1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
-  glm_glycA_cortical[i+1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
-  glm_glycA_cortical[i+1, "p.adjust"] <- p.adjust(coef(summary(glm1))["glycA_1",4], method = "fdr", n = 5)
+  glm_glycA_cortical_volume[i+1,"cortical_volume"] <- cortical_lobes[i]
+  glm_glycA_cortical_volume[i+1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
+  glm_glycA_cortical_volume[i+1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
+  glm_glycA_cortical_volume[i+1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
+  glm_glycA_cortical_volume[i+1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
+  glm_glycA_cortical_volume[i+1, "p.adjust"] <- p.adjust(coef(summary(glm1))["glycA_1",4], method = "fdr", n = 5)
 }
 
 ## Plot results
 # lock in factor level order
-glm_glycA_cortical$cortical_volume  = with(glm_glycA_cortical, reorder(cortical_volume, beta))
+glm_glycA_cortical_volume$cortical_volume  = with(glm_glycA_cortical_volume, reorder(cortical_volume, beta))
 
-p1 <- ggplot(data=glm_glycA_cortical[!glm_glycA_cortical$cortical_volume=="global_cortical_volume",], aes(x=cortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+p1 <- ggplot(data=glm_glycA_cortical_volume[!glm_glycA_cortical_volume$cortical_volume=="global_cortical_volume",], aes(x=cortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
   geom_pointrange() + 
   geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
   coord_flip() +  # flip coordinates (puts labels on y axis)
@@ -398,7 +399,7 @@ p1 <- ggplot(data=glm_glycA_cortical[!glm_glycA_cortical$cortical_volume=="globa
   labs(title ="Association of GlycA and General Cortical Volumes") + 
   scale_x_discrete(labels=c("frontal_lobe" = "Frontal Lobe", "temporal_lobe" = "Temporal Lobe","parietal_lobe" = "Parietal Lobe", "occipital_lobe" = "Occipital Lobe", "cingulate_lobe" = "Cingulate Lobe"))
 
-p2 <- ggplot(data=glm_glycA_cortical[glm_glycA_cortical$cortical_volume=="global_cortical_volume",], aes(x=cortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+p2 <- ggplot(data=glm_glycA_cortical_volume[glm_glycA_cortical_volume$cortical_volume=="global_cortical_volume",], aes(x=cortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
   geom_pointrange() + 
   geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
   coord_flip() +  # flip coordinates (puts labels on y axis)
@@ -418,14 +419,383 @@ p1 / p2 +
   plot_layout(design = layout)
 dev.off()
 
-write.csv(glm_glycA_cortical, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_cortical_general.csv",
+write.csv(glm_glycA_cortical_volume, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_cortical_general.csv",
           quote = FALSE, row.names = FALSE)
 
+## Calculate cortical lobar area measures
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Frontal lobe area FIDs:
+## Superior frontal gyrus = 26748 + 26849
+## rostralmiddlefrontal = 26747 + 26848
+## Caudalmiddlefrontal = 26724 + 26825
+## Pars orbitalis = 26739 + 26840
+## pars triangularis = 26740 + 26841
+## pars opercularis = 26805 + 26839
+## Frontal pole = 26752 + 26853
+## Lateral orbitofrontal = 26732 + 26833
+## medial orbitofrontal = 26734 + 26835
+## Precentral gyrus = 26744 + 26845
+## paracentral cortex = 26737 + 26838
+
+## Sum area of individual structures in frontal lobe
+UKB_imaging_glycA$frontal_lobe_area <- UKB_imaging_glycA$f.26748.2.0 + UKB_imaging_glycA$f.26849.2.0 + UKB_imaging_glycA$f.26747.2.0 +
+  UKB_imaging_glycA$f.26848.2.0 + UKB_imaging_glycA$f.26724.2.0 + UKB_imaging_glycA$f.26825.2.0 + UKB_imaging_glycA$f.26739.2.0 +
+  UKB_imaging_glycA$f.26840.2.0 + UKB_imaging_glycA$f.26740.2.0 + UKB_imaging_glycA$f.26841.2.0 + UKB_imaging_glycA$f.26805.2.0 + 
+  UKB_imaging_glycA$f.26839.2.0 + UKB_imaging_glycA$f.26752.2.0 + UKB_imaging_glycA$f.26853.2.0 + UKB_imaging_glycA$f.26732.2.0 +
+  UKB_imaging_glycA$f.26833.2.0 + UKB_imaging_glycA$f.26734.2.0 + UKB_imaging_glycA$f.26835.2.0 + UKB_imaging_glycA$f.26744.2.0 + 
+  UKB_imaging_glycA$f.26845.2.0 + UKB_imaging_glycA$f.26737.2.0 + UKB_imaging_glycA$f.26838.2.0
+
+mean(UKB_imaging_glycA$frontal_lobe_area, na.rm = T)
+
+## Temporal lobe area FIDs:
+## Insula= 26754 + 26855
+## Superior temporal = 26750 + 26851
+## transverse temporal = 26753 + 26854
+## banks STS = 	26722 + 26823
+## Middle temporal gyrus = 26735 + 26836
+## Inferior temporal gyrus = 26796 + 26897
+## Fusiform = 26727 + 26828
+## parahippocampal = 26736 + 26837
+## entorhinal = 26726 + 26827
+
+## Sum area of individual structures in temporal lobe
+UKB_imaging_glycA$temporal_lobe_area <- UKB_imaging_glycA$f.26754.2.0 + UKB_imaging_glycA$f.26855.2.0 + UKB_imaging_glycA$f.26750.2.0 +
+  UKB_imaging_glycA$f.26851.2.0 + UKB_imaging_glycA$f.26753.2.0 + UKB_imaging_glycA$f.26854.2.0 + UKB_imaging_glycA$f.26722.2.0 +
+  UKB_imaging_glycA$f.26823.2.0 + UKB_imaging_glycA$f.26735.2.0 + UKB_imaging_glycA$f.26836.2.0 + UKB_imaging_glycA$f.26796.2.0 +
+  UKB_imaging_glycA$f.26897.2.0 + UKB_imaging_glycA$f.26727.2.0 + UKB_imaging_glycA$f.26828.2.0 + UKB_imaging_glycA$f.26736.2.0 +
+  UKB_imaging_glycA$f.26837.2.0 + UKB_imaging_glycA$f.26726.2.0 + UKB_imaging_glycA$f.26827.2.0
+
+mean(UKB_imaging_glycA$temporal_lobe_area, na.rm = T)
+
+## Parietal area lobe:
+## Postcentral gyrus = 26742 + 26843
+## paracentral cortex = 26737 + 26838
+## Superior parietal cortex = 26749 + 26850
+## Inferior parietal cortex = 26728 + 26829
+## Supramarginal gyrus = 26751 + 26852
+## Precuneus = 26745 + 26846
+
+## Sum area of individual structures in parietal lobe
+UKB_imaging_glycA$parietal_lobe_area <- UKB_imaging_glycA$f.26742.2.0 + UKB_imaging_glycA$f.26843.2.0 + UKB_imaging_glycA$f.26737.2.0 +
+  UKB_imaging_glycA$f.26838.2.0 + UKB_imaging_glycA$f.26749.2.0 + UKB_imaging_glycA$f.26850.2.0 + UKB_imaging_glycA$f.26728.2.0 +
+  UKB_imaging_glycA$f.26829.2.0 + UKB_imaging_glycA$f.26751.2.0 + UKB_imaging_glycA$f.26852.2.0 + UKB_imaging_glycA$f.26745.2.0 +
+  UKB_imaging_glycA$f.26846.2.0
+
+mean(UKB_imaging_glycA$parietal_lobe_area, na.rm = T)
+
+## Occipital area lobe:
+## Lateral occipital cortex = 26731, 26832
+## Cuneus = 26725, 26826
+## Pericalcarine cortex = 26741, 26842
+## Lingual gyrus = 26733, 26834
+
+UKB_imaging_glycA$occipital_lobe_area <- UKB_imaging_glycA$f.26731.2.0 + UKB_imaging_glycA$f.26832.2.0 + UKB_imaging_glycA$f.26725.2.0 +
+  UKB_imaging_glycA$f.26826.2.0 + UKB_imaging_glycA$f.26741.2.0 + UKB_imaging_glycA$f.26842.2.0 + UKB_imaging_glycA$f.26733.2.0 +
+  UKB_imaging_glycA$f.26834.2.0
+
+mean(UKB_imaging_glycA$occipital_lobe_area, na.rm = T)
+
+## Cingulate area lobe:
+## Rostral ACC = 26746, 26847
+## Caudal ACC = 26723, 26824
+## Posterior cingulate cortex = 26743 + 26844
+## Cingulate isthmus = 26730 + 26831
+
+UKB_imaging_glycA$cingulate_lobe_area <- UKB_imaging_glycA$f.26746.2.0 + UKB_imaging_glycA$f.26847.2.0 + UKB_imaging_glycA$f.26723.2.0 +
+  UKB_imaging_glycA$f.26824.2.0 + UKB_imaging_glycA$f.26743.2.0 + UKB_imaging_glycA$f.26844.2.0 + UKB_imaging_glycA$f.26730.2.0 +
+  UKB_imaging_glycA$f.26831.2.0
+
+mean(UKB_imaging_glycA$cingulate_lobe_area, na.rm = T)
+
+## Sum lobar areas to get global cortical area
+UKB_imaging_glycA$global_cortical_area <- UKB_imaging_glycA$frontal_lobe_area + UKB_imaging_glycA$temporal_lobe_area + UKB_imaging_glycA$parietal_lobe_area +
+  UKB_imaging_glycA$occipital_lobe_area +UKB_imaging_glycA$cingulate_lobe_area
+
+mean(UKB_imaging_glycA$global_cortical_area, na.rm = T)
+
+
+## Standardise all cortical global and lobar areas
+UKB_imaging_glycA$global_cortical_area <- scale(UKB_imaging_glycA$global_cortical_area)
+UKB_imaging_glycA$frontal_lobe_area <- scale(UKB_imaging_glycA$frontal_lobe_area)
+UKB_imaging_glycA$temporal_lobe_area <- scale(UKB_imaging_glycA$temporal_lobe_area)
+UKB_imaging_glycA$parietal_lobe_area <- scale(UKB_imaging_glycA$parietal_lobe_area)
+UKB_imaging_glycA$occipital_lobe_area <- scale(UKB_imaging_glycA$occipital_lobe_area)
+UKB_imaging_glycA$cingulate_lobe_area <- scale(UKB_imaging_glycA$cingulate_lobe_area)
+
+## Remove outliers - IQR method
+outliers <- boxplot(UKB_imaging_glycA$global_cortical_area, plot=FALSE)$out
+UKB_imaging_glycA_global_cortical_area_outliers_removed <- UKB_imaging_glycA
+UKB_imaging_glycA_global_cortical_area_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA$global_cortical_area %in% outliers),]
+
+## Statistical analysis
+## Create dataframe to store glm output
+glm_glycA_cortical_area <- data.frame(cortical_area=character(), beta=numeric(), std=numeric(), p.value=numeric(),
+                                      p.adjust=numeric(), Lower_95CI=numeric(), Upper_95CI=numeric())
+
+
+## CRP PRS ~ global corical area + covariates
+glm1 <- glm(global_cortical_area  ~ glycA_1 + sex + BMI + assessment_centre_first_imaging + age + age_squared + ICV,
+            data = UKB_imaging_glycA_global_cortical_area_outliers_removed)
+
+summary(glm1)
+
+glm_glycA_cortical_area[1,"cortical_area"] <- "global_cortical_area"
+glm_glycA_cortical_area[1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
+glm_glycA_cortical_area[1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
+glm_glycA_cortical_area[1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
+glm_glycA_cortical_area[1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
+
+
+cortical_lobes <- c("frontal_lobe_area", "temporal_lobe_area", "parietal_lobe_area", "occipital_lobe_area", "cingulate_lobe_area")
+
+for (i in 1:5){
+  
+  ## Remove outliers - IQR method
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_lobes[i]], plot=FALSE)$out
+  UKB_imaging_glycA_lobar_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_lobar_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_lobes[i]] %in% outliers),]
+  
+  
+  mod <- paste0(cortical_lobes[i], "~ glycA_1 + sex + BMI + assessment_centre_first_imaging + age + age + age_squared + ICV")
+  glm1 <- glm(as.formula(mod),
+              data = UKB_imaging_glycA_lobar_outliers_removed)
+  
+  glm_glycA_cortical_area[i+1,"cortical_area"] <- cortical_lobes[i]
+  glm_glycA_cortical_area[i+1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
+  glm_glycA_cortical_area[i+1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
+  glm_glycA_cortical_area[i+1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
+  glm_glycA_cortical_area[i+1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
+  glm_glycA_cortical_area[i+1, "p.adjust"] <- p.adjust(coef(summary(glm1))["glycA_1",4], method = "fdr", n = 5)
+}
+
+## Plot results
+# lock in factor level order
+glm_glycA_cortical_area$cortical_area  = with(glm_glycA_cortical_area, reorder(cortical_area, beta))
+
+p1 <- ggplot(data=glm_glycA_cortical_area[!glm_glycA_cortical_area$cortical_area=="global_cortical_area",], aes(x=cortical_area, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("") + ylab("Mean (95% CI)") +
+  theme_bw() + # use a white background
+  ylim(-0.3,0.3) +
+  labs(title ="Association of GlycA and General Cortical areas") + 
+  scale_x_discrete(labels=c("frontal_lobe" = "Frontal Lobe", "temporal_lobe" = "Temporal Lobe","parietal_lobe" = "Parietal Lobe", "occipital_lobe" = "Occipital Lobe", "cingulate_lobe" = "Cingulate Lobe"))
+
+p2 <- ggplot(data=glm_glycA_cortical_area[glm_glycA_cortical_area$cortical_area=="global_cortical_area",], aes(x=cortical_area, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("") + ylab("Mean (95% CI)") +
+  theme_bw() +  # use a white background
+  ylim(-0.12,0.12) +
+  labs(title ="Association of GlycA and Global Cortical area") +
+  scale_x_discrete(labels=c("global_cortical_area" = "Global"))
+
+
+layout <- c(
+  area(t = 1, l = 1, b = 3, r = 4),
+  area(t = 4, l = 1, b = 4, r = 4))
+
+jpeg("~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/association_glycA_general_cortical_area.jpg")
+p1 / p2 + 
+  plot_layout(design = layout)
+dev.off()
+
+write.csv(glm_glycA_cortical_area, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_cortical_area_general.csv",
+          quote = FALSE, row.names = FALSE)
+
+## Calculate cortical lobar thickness measures
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Frontal lobe thickness FIDs:
+## Superior frontal gyrus = 26782 + 26883
+## rostralmiddlefrontal = 26781 + 26882
+## Caudalmiddlefrontal = 26758 + 26859
+## Pars orbitalis = 26773 + 26874
+## pars triangularis = 26774 + 26875
+## pars opercularis = 26772 + 26873
+## Frontal pole = 26786 + 26887
+## Lateral orbitofrontal = 26766 + 26867
+## medial orbitofrontal = 26768 + 26869
+## Precentral gyrus = 26778 + 26879
+## paracentral cortex = 26771 + 26872
+
+## Sum thickness of individual structures in frontal lobe
+UKB_imaging_glycA$frontal_lobe_thickness <- UKB_imaging_glycA$f.26782.2.0 + UKB_imaging_glycA$f.26883.2.0 + UKB_imaging_glycA$f.26781.2.0 +
+  UKB_imaging_glycA$f.26882.2.0 + UKB_imaging_glycA$f.26758.2.0 + UKB_imaging_glycA$f.26859.2.0 + UKB_imaging_glycA$f.26773.2.0 +
+  UKB_imaging_glycA$f.26874.2.0 + UKB_imaging_glycA$f.26774.2.0 + UKB_imaging_glycA$f.26875.2.0 + UKB_imaging_glycA$f.26772.2.0 + 
+  UKB_imaging_glycA$f.26873.2.0 + UKB_imaging_glycA$f.26786.2.0 + UKB_imaging_glycA$f.26887.2.0 + UKB_imaging_glycA$f.26766.2.0 +
+  UKB_imaging_glycA$f.26867.2.0 + UKB_imaging_glycA$f.26768.2.0 + UKB_imaging_glycA$f.26869.2.0 + UKB_imaging_glycA$f.26778.2.0 + 
+  UKB_imaging_glycA$f.26879.2.0 + UKB_imaging_glycA$f.26771.2.0 + UKB_imaging_glycA$f.26872.2.0
+
+mean(UKB_imaging_glycA$frontal_lobe_thickness, na.rm = T)
+
+## Temporal lobe thickness FIDs:
+## Insula= 26788 + 26889
+## Superior temporal = 26784 + 26885
+## transverse temporal = 26787 + 26888
+## banks STS = 	26756 + 26857
+## Middle temporal gyrus = 26769 + 26870
+## Inferior temporal gyrus = 26796 + 26897
+## Fusiform = 26761 + 26862
+## parahippocampal = 26770 + 26871
+## entorhinal = 26760 + 26760
+
+## Sum thickness of individual structures in temporal lobe
+UKB_imaging_glycA$temporal_lobe_thickness <- UKB_imaging_glycA$f.26788.2.0 + UKB_imaging_glycA$f.26889.2.0 + UKB_imaging_glycA$f.26784.2.0 +
+  UKB_imaging_glycA$f.26885.2.0 + UKB_imaging_glycA$f.26787.2.0 + UKB_imaging_glycA$f.26888.2.0 + UKB_imaging_glycA$f.26756.2.0 +
+  UKB_imaging_glycA$f.26857.2.0 + UKB_imaging_glycA$f.26769.2.0 + UKB_imaging_glycA$f.26870.2.0 + UKB_imaging_glycA$f.26796.2.0 +
+  UKB_imaging_glycA$f.26897.2.0 + UKB_imaging_glycA$f.26761.2.0 + UKB_imaging_glycA$f.26862.2.0 + UKB_imaging_glycA$f.26770.2.0 +
+  UKB_imaging_glycA$f.26871.2.0 + UKB_imaging_glycA$f.26760.2.0 + UKB_imaging_glycA$f.26760.2.0
+
+mean(UKB_imaging_glycA$temporal_lobe_thickness, na.rm = T)
+
+## Parietal thickness lobe:
+## Postcentral gyrus = 26776 + 26877
+## paracentral cortex = 26771 + 26872
+## Superior parietal cortex = 26783 + 26884
+## Inferior parietal cortex = 26762 + 26863
+## Supramarginal gyrus = 26785 + 26886
+## Precuneus = 26779 + 26880
+
+## Sum thickness of individual structures in parietal lobe
+UKB_imaging_glycA$parietal_lobe_thickness <- UKB_imaging_glycA$f.26776.2.0 + UKB_imaging_glycA$f.26877.2.0 + UKB_imaging_glycA$f.26771.2.0 +
+  UKB_imaging_glycA$f.26872.2.0 + UKB_imaging_glycA$f.26783.2.0 + UKB_imaging_glycA$f.26884.2.0 + UKB_imaging_glycA$f.26762.2.0 +
+  UKB_imaging_glycA$f.26863.2.0 + UKB_imaging_glycA$f.26785.2.0 + UKB_imaging_glycA$f.26886.2.0 + UKB_imaging_glycA$f.26779.2.0 +
+  UKB_imaging_glycA$f.26880.2.0
+
+mean(UKB_imaging_glycA$parietal_lobe_thickness, na.rm = T)
+
+## Occipital thickness lobe:
+## Lateral occipital cortex = 26765, 26866
+## Cuneus = 26759, 26860
+## Pericalcarine cortex = 26775, 26876
+## Lingual gyrus = 26767, 26868
+
+UKB_imaging_glycA$occipital_lobe_thickness <- UKB_imaging_glycA$f.26765.2.0 + UKB_imaging_glycA$f.26866.2.0 + UKB_imaging_glycA$f.26759.2.0 +
+  UKB_imaging_glycA$f.26860.2.0 + UKB_imaging_glycA$f.26775.2.0 + UKB_imaging_glycA$f.26876.2.0 + UKB_imaging_glycA$f.26767.2.0 +
+  UKB_imaging_glycA$f.26868.2.0
+
+mean(UKB_imaging_glycA$occipital_lobe_thickness, na.rm = T)
+
+## Cingulate thickness lobe:
+## Rostral ACC = 26780, 26881
+## Caudal ACC = 26757, 26858
+## Posterior cingulate cortex = 26777 + 26878
+## Cingulate isthmus = 26764 + 26865
+
+UKB_imaging_glycA$cingulate_lobe_thickness <- UKB_imaging_glycA$f.26780.2.0 + UKB_imaging_glycA$f.26881.2.0 + UKB_imaging_glycA$f.26757.2.0 +
+  UKB_imaging_glycA$f.26858.2.0 + UKB_imaging_glycA$f.26777.2.0 + UKB_imaging_glycA$f.26878.2.0 + UKB_imaging_glycA$f.26764.2.0 +
+  UKB_imaging_glycA$f.26865.2.0
+
+mean(UKB_imaging_glycA$cingulate_lobe_thickness, na.rm = T)
+
+## Sum lobar thicknesss to get global cortical thickness
+UKB_imaging_glycA$global_cortical_thickness <- UKB_imaging_glycA$frontal_lobe + UKB_imaging_glycA$temporal_lobe + UKB_imaging_glycA$parietal_lobe +
+  UKB_imaging_glycA$occipital_lobe +UKB_imaging_glycA$cingulate_lobe 
+
+mean(UKB_imaging_glycA$global_cortical_thickness, na.rm = T)
+
+## Standardise all cortical global and lobar thicknesss
+UKB_imaging_glycA$global_cortical_thickness <- scale(UKB_imaging_glycA$global_cortical_thickness)
+UKB_imaging_glycA$frontal_lobe_thickness <- scale(UKB_imaging_glycA$frontal_lobe_thickness)
+UKB_imaging_glycA$temporal_lobe_thickness <- scale(UKB_imaging_glycA$temporal_lobe_thickness)
+UKB_imaging_glycA$parietal_lobe_thickness <- scale(UKB_imaging_glycA$parietal_lobe_thickness)
+UKB_imaging_glycA$occipital_lobe_thickness <- scale(UKB_imaging_glycA$occipital_lobe_thickness)
+UKB_imaging_glycA$cingulate_lobe_thickness <- scale(UKB_imaging_glycA$cingulate_lobe_thickness)
+
+## Save dataframe with CRP PRS, serum CRP, covariates and strucutral data
+write.csv(UKB_imaging_glycA, "~/Desktop/PhD/projects/UKBCRPImagingPRS/resources/UKB_imaging_glycA.csv", quote = F)
+
+
+## Remove outliers - IQR method
+outliers <- boxplot(UKB_imaging_glycA$global_cortical_thickness, plot=FALSE)$out
+UKB_imaging_glycA_global_cortical_thickness_outliers_removed <- UKB_imaging_glycA
+UKB_imaging_glycA_global_cortical_thickness_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA$global_cortical_thickness %in% outliers),]
+
+## Statistical analysis
+## Create dataframe to store glm output
+glm_glycA_cortical_thickness <- data.frame(cortical_thickness=character(), beta=numeric(), std=numeric(), p.value=numeric(),
+                                           p.adjust=numeric(), Lower_95CI=numeric(), Upper_95CI=numeric())
+
+
+## CRP PRS ~ global corical thickness + covariates
+glm1 <- glm(global_cortical_thickness  ~ glycA_1 + sex + BMI + assessment_centre_first_imaging + age + age_squared + ICV,
+            data = UKB_imaging_glycA_global_cortical_thickness_outliers_removed)
+
+summary(glm1)
+
+glm_glycA_cortical_thickness[1,"cortical_thickness"] <- "global_cortical_thickness"
+glm_glycA_cortical_thickness[1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
+glm_glycA_cortical_thickness[1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
+glm_glycA_cortical_thickness[1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
+glm_glycA_cortical_thickness[1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
+
+
+cortical_lobes <- c("frontal_lobe_thickness", "temporal_lobe_thickness", "parietal_lobe_thickness", "occipital_lobe_thickness", "cingulate_lobe_thickness")
+
+for (i in 1:5){
+  
+  ## Remove outliers - IQR method
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_lobes[i]], plot=FALSE)$out
+  UKB_imaging_glycA_lobar_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_lobar_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_lobes[i]] %in% outliers),]
+  
+  
+  mod <- paste0(cortical_lobes[i], "~ glycA_1 + sex + BMI + assessment_centre_first_imaging + age + age + age_squared + ICV")
+  glm1 <- glm(as.formula(mod),
+              data = UKB_imaging_glycA_lobar_outliers_removed)
+  
+  glm_glycA_cortical_thickness[i+1,"cortical_thickness"] <- cortical_lobes[i]
+  glm_glycA_cortical_thickness[i+1, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
+  glm_glycA_cortical_thickness[i+1, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
+  glm_glycA_cortical_thickness[i+1, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
+  glm_glycA_cortical_thickness[i+1, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
+  glm_glycA_cortical_thickness[i+1, "p.adjust"] <- p.adjust(coef(summary(glm1))["glycA_1",4], method = "fdr", n = 5)
+}
+
+## Plot results
+# lock in factor level order
+glm_glycA_cortical_thickness$cortical_thickness  = with(glm_glycA_cortical_thickness, reorder(cortical_thickness, beta))
+
+p1 <- ggplot(data=glm_glycA_cortical_thickness[!glm_glycA_cortical_thickness$cortical_thickness=="global_cortical_thickness",], aes(x=cortical_thickness, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("") + ylab("Mean (95% CI)") +
+  theme_bw() + # use a white background
+  ylim(-0.6,0.6) +
+  labs(title ="Association of GlycA and General Cortical thicknesss") + 
+  scale_x_discrete(labels=c("frontal_lobe" = "Frontal Lobe", "temporal_lobe" = "Temporal Lobe","parietal_lobe" = "Parietal Lobe", "occipital_lobe" = "Occipital Lobe", "cingulate_lobe" = "Cingulate Lobe"))
+
+p2 <- ggplot(data=glm_glycA_cortical_thickness[glm_glycA_cortical_thickness$cortical_thickness=="global_cortical_thickness",], aes(x=cortical_thickness, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("") + ylab("Mean (95% CI)") +
+  theme_bw() +  # use a white background
+  ylim(-0.12,0.12) +
+  labs(title ="Association of GlycA and Global Cortical thickness") +
+  scale_x_discrete(labels=c("global_cortical_thickness" = "Global"))
+
+
+layout <- c(
+  area(t = 1, l = 1, b = 3, r = 4),
+  area(t = 4, l = 1, b = 4, r = 4))
+
+jpeg("~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/association_glycA_general_cortical_thickness.jpg")
+p1 / p2 + 
+  plot_layout(design = layout)
+dev.off()
+
+write.csv(glm_glycA_cortical_thickness, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_cortical_thickness_general.csv",
+          quote = FALSE, row.names = FALSE)
+
+
 ## Association analysis of individual cortical volumes
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Run interaction analysis to see if there is an effect modification between glycA and hemisphere on cortical volumes
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## list of column names for each cortical volume
 cortical_volume_FIDs <- paste0("f.", c(26789:26821, 26890:26922), ".2.0")
 
 ## Create dataframe to store output
@@ -436,14 +806,14 @@ for (i in 1:33){
   
   ## Remove outliers - IQR method
   outliers <- boxplot(UKB_imaging_glycA[,cortical_volume_FIDs[i]], plot=FALSE)$out
-  UKB_imaging_glycA_cortical_regions_outliers_removed <- UKB_imaging_glycA
-  UKB_imaging_glycA_cortical_regions_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_volume_FIDs[i]] %in% outliers),]
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_volume_FIDs[i]] %in% outliers),]
   outliers <- boxplot(UKB_imaging_glycA[,cortical_volume_FIDs[i +33]], plot=FALSE)$out
-  UKB_imaging_glycA_cortical_regions_outliers_removed <- UKB_imaging_glycA_cortical_regions_outliers_removed[-which(UKB_imaging_glycA_cortical_regions_outliers_removed[,cortical_volume_FIDs[i+33]] %in% outliers),]
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA_cortical_volume_outliers_removed[-which(UKB_imaging_glycA_cortical_volume_outliers_removed[,cortical_volume_FIDs[i+33]] %in% outliers),]
   
   
   ## Select essential columns
-  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_regions_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
+  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_volume_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
                                             cortical_volume_FIDs[i], cortical_volume_FIDs[i +33])]
   
   ## Convert short dataframe to long format
@@ -468,19 +838,18 @@ for (i in 1:33){
 }
 ## No interaction found between glycA_1 and hemisphere on volumes
 
-## Run linear mixed effect model analysis to look at the effect of CRP PRS on repeat measures (hemispheres) of corical volumes
+
+## Run linear mixed effect model analysis to look at the effect of GlycA on repeat measures (hemispheres) of cortical volumes
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Generate dataframe to record P-values, CIs and beta coefficients
-lme_cortical_regions_glycA <- data.frame(mod_name=character(), beta=numeric(), std=numeric(), t.value=numeric(), p.value=numeric(),
-                                           Lower_95CI=numeric(), Upper_95CI=numeric())
+
+lme_cortical_volume_glycA <- data.frame(mod_name=character(), beta=numeric(), std=numeric(), t.value=numeric(), p.value=numeric(),
+                                         Lower_95CI=numeric(), Upper_95CI=numeric())
 ## Generate ls.mod
 ls.mod.PRS <- data.frame(Dep ="Volume",
                          Factor =  "glycA_1",
                          Covariates = "sex + age + age_squared + BMI + ICV + assessment_centre_first_imaging + Hemisphere",
                          Model = "lme")
-
-## list of column names for each cortical volume
-cortical_volume_FIDs <- paste0("f.", c(26789:26821, 26890:26922), ".2.0")
 
 ## Iterate through each cortical volume and run lme 
 for (i in 1:33){
@@ -488,23 +857,23 @@ for (i in 1:33){
   
   ## Remove outliers - IQR method
   outliers <- boxplot(UKB_imaging_glycA[,cortical_volume_FIDs[i]], plot=FALSE)$out
-  UKB_imaging_glycA_cortical_regions_outliers_removed <- UKB_imaging_glycA
-  UKB_imaging_glycA_cortical_regions_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_volume_FIDs[i]] %in% outliers),]
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_volume_FIDs[i]] %in% outliers),]
   outliers <- boxplot(UKB_imaging_glycA[,cortical_volume_FIDs[i +33]], plot=FALSE)$out
-  UKB_imaging_glycA_cortical_regions_outliers_removed <- UKB_imaging_glycA_cortical_regions_outliers_removed[-which(UKB_imaging_glycA_cortical_regions_outliers_removed[,cortical_volume_FIDs[i+33]] %in% outliers),]
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA_cortical_volume_outliers_removed[-which(UKB_imaging_glycA_cortical_volume_outliers_removed[,cortical_volume_FIDs[i+33]] %in% outliers),]
   
   
   ## Select essential columns
-  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_regions_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
-                                            cortical_volume_FIDs[i], cortical_volume_FIDs[i +33])]
+  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_volume_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
+                                                                               cortical_volume_FIDs[i], cortical_volume_FIDs[i +33])]
   
   ## Convert short dataframe to long format
   UKB_glycA_DK_small_long <- reshape(UKB_glycA_DK_small, 
-                                       varying = c(cortical_volume_FIDs[i], cortical_volume_FIDs[i + 33]), 
-                                       v.names = "Volume",
-                                       timevar = "Region", 
-                                       times = c(cortical_volume_FIDs[i], cortical_volume_FIDs[i + 33]), 
-                                       direction = "long")
+                                     varying = c(cortical_volume_FIDs[i], cortical_volume_FIDs[i + 33]), 
+                                     v.names = "Volume",
+                                     timevar = "Region", 
+                                     times = c(cortical_volume_FIDs[i], cortical_volume_FIDs[i + 33]), 
+                                     direction = "long")
   
   ## Add column indicating hemisphere
   UKB_glycA_DK_small_long$Hemisphere <- NA
@@ -524,16 +893,16 @@ for (i in 1:33){
   cortical_volume_sub <- sub(("\\(.*"), "", cortical_volume)
   lme_cortical_region_iterate_glycA$cortical_volume <- str_to_title(sub(("Volume of "), "", cortical_volume_sub))
   ## Append to data frame
-  lme_cortical_regions_glycA <- rbind(lme_cortical_region_iterate_glycA, lme_cortical_regions_glycA)
+  lme_cortical_volume_glycA <- rbind(lme_cortical_region_iterate_glycA, lme_cortical_volume_glycA)
 }
 
 
 ## Plot results
-lme_cortical_regions_glycA$cortical_volume = with(lme_cortical_regions_glycA, reorder(cortical_volume, beta))
+lme_cortical_volume_glycA$cortical_volume = with(lme_cortical_volume_glycA, reorder(cortical_volume, beta))
 
 jpeg("~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/association_glycA_regional_cortical_structures.jpg")
 
-ggplot(data=lme_cortical_regions_glycA, aes(x=cortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+ggplot(data=lme_cortical_volume_glycA, aes(x=cortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
   geom_pointrange() + 
   geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
   coord_flip() +  # flip coordinates (puts labels on y axis)
@@ -543,7 +912,249 @@ ggplot(data=lme_cortical_regions_glycA, aes(x=cortical_volume, y=beta, ymin=Lowe
 
 dev.off()
 
-write.csv(lme_cortical_regions_glycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_cortical_regions.csv",
+write.csv(lme_cortical_volume_glycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_cortical_volume.csv",
+          quote = FALSE, row.names = FALSE)
+
+## Association analysis of individual cortical areas
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Run interaction analysis to see if there is an effect modification between glycA and hemisphere on cortical areas
+cortical_area_FIDs <- paste0("f.", c(26722:26754, 26823:26855), ".2.0")
+
+## Create dataframe to store output
+interaction_glycA_hemisphere <- data.frame(area=character(),  interaction_p=numeric(), interaction_p_adjust=numeric())
+
+for (i in 1:33){
+
+  ## Remove outliers - IQR method
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_area_FIDs[i]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_area_FIDs[i]] %in% outliers),]
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_area_FIDs[i +33]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA_cortical_volume_outliers_removed[-which(UKB_imaging_glycA_cortical_volume_outliers_removed[,cortical_area_FIDs[i+33]] %in% outliers),]
+  
+  
+  ## Select essential columns
+  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_volume_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
+                                                                               cortical_area_FIDs[i], cortical_area_FIDs[i +33])]
+  
+  ## Convert short dataframe to long format
+  UKB_glycA_DK_small_long <- reshape(UKB_glycA_DK_small, 
+                                     varying = c(cortical_area_FIDs[i], cortical_area_FIDs[i + 33]), 
+                                     v.names = "area",
+                                     timevar = "Region", 
+                                     times = c(cortical_area_FIDs[i], cortical_area_FIDs[i + 33]), 
+                                     direction = "long")
+  
+  ## Add column indicating hemisphere
+  UKB_glycA_DK_small_long$Hemisphere <- NA
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_area_FIDs[i]] <- "left"
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_area_FIDs[i + 33]] <- "right"
+  
+  ## Carry out interaction analysis
+  lm1 <- lm(area ~ glycA_1 * Hemisphere + sex + age + age + age_squared + BMI + ICV + assessment_centre_first_imaging, data = UKB_glycA_DK_small_long)
+  
+  interaction_glycA_hemisphere[i,"area"] <- (cortical_area_FIDs)[i]
+  interaction_glycA_hemisphere[i,"interaction_p"] <- summary(lm1)[["coefficients"]]["glycA_1:Hemisphereright", "Pr(>|t|)"]
+  interaction_glycA_hemisphere[i,"interaction_p_adjust"] <- p.adjust(interaction_glycA_hemisphere[i,"interaction_p"], n = 33, method = "fdr")
+}
+## No hemisphere interaction found between glycA_1 and areas
+
+## Run lme analysis to look at the effects of CRP PRS on cortical areas
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Generate dataframe to record P-values, CIs and beta coefficients
+lme_cortical_area_glycA <- data.frame(mod_name=character(), beta=numeric(), std=numeric(), t.value=numeric(), p.value=numeric(),
+                                      Lower_95CI=numeric(), Upper_95CI=numeric())
+
+## Generate ls.mod
+ls.mod.glycA.area <- data.frame(Dep ="area",
+                         Factor =  "glycA_1",
+                         Covariates = "sex + age + age_squared + BMI + ICV + assessment_centre_first_imaging + Hemisphere",
+                         Model = "lme")
+
+
+## Iterate through each cortical area and run glm 
+for (i in 1:33){
+  
+  ## Remove outliers - IQR method
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_area_FIDs[i]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_area_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_cortical_area_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_area_FIDs[i]] %in% outliers),]
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_area_FIDs[i +33]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_area_outliers_removed <- UKB_imaging_glycA_cortical_area_outliers_removed[-which(UKB_imaging_glycA_cortical_area_outliers_removed[,cortical_area_FIDs[i+33]] %in% outliers),]
+  
+  ## Select essential columns
+  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_area_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
+                                                                               cortical_area_FIDs[i], cortical_area_FIDs[i +33])]
+  
+  ## Convert short dataframe to long format
+  UKB_glycA_DK_small_long <- reshape(UKB_glycA_DK_small, 
+                                     varying = c(cortical_area_FIDs[i], cortical_area_FIDs[i + 33]), 
+                                     v.names = "area",
+                                     timevar = "Region", 
+                                     times = c(cortical_area_FIDs[i], cortical_area_FIDs[i + 33]), 
+                                     direction = "long")
+  
+  ## Add column indicating hemisphere
+  UKB_glycA_DK_small_long$Hemisphere <- NA
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_area_FIDs[i]] <- "left"
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_area_FIDs[i + 33]] <- "right"
+  
+  ## Generate ls.mode
+  
+  ## Rum lme and get output (BTEA, SD, T, P, 95% CIs)
+  output <- try(run_model(ls.mod.glycA.area, UKB_glycA_DK_small, UKB_glycA_DK_small_long))
+  ## Add region field ID
+  lme_cortical_region_iterate_glycA <- cbind(data_frame(region_field_ID = paste0(cortical_area_FIDs[i],"_",cortical_area_FIDs[i + 33])), output)
+  ## Adjust P value for multiple comparisons (FDR)
+  lme_cortical_region_iterate_glycA$p.value.adjust <- p.adjust(lme_cortical_region_iterate_glycA$p.value, n = 33, method = "fdr")
+  ## Add cortical area name
+  cortical_area <- UKB_imaging_DKW_key$cortical_volume[grepl(substring(lme_cortical_region_iterate_glycA$region_field_ID, 3,7), UKB_imaging_DKW_key$feild_ID)]
+  cortical_area_sub <- sub(("\\(.*"), "", cortical_area)
+  lme_cortical_region_iterate_glycA$cortical_area <- str_to_title(sub(("Area of "), "", cortical_area_sub))
+  ## Append to data frame
+  lme_cortical_area_glycA <- rbind(lme_cortical_region_iterate_glycA, lme_cortical_area_glycA)
+}
+
+
+## Plot results
+lme_cortical_area_glycA$cortical_area = with(lme_cortical_area_glycA, reorder(cortical_area, beta))
+
+jpeg("~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/association_glycA_regional_cortical_structures.jpg")
+
+ggplot(data=lme_cortical_area_glycA, aes(x=cortical_area, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("Label") + ylab("Mean (95% CI)") +
+  theme_bw() +
+  labs(title = "Association of GlycA and Regional Cortical areas")
+
+dev.off()
+
+write.csv(lme_cortical_area_glycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glm_cortical_area_glycA.csv",
+          quote = FALSE, row.names = FALSE)
+
+
+
+## Association analysis of individual cortical thicknesss
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Run interaction analysis to see if there is an effect modification between glycA and hemisphere on cortical thicknesss
+cortical_thickness_FIDs <- paste0("f.", c(26756:26788, 26857:26889), ".2.0")
+
+## Create dataframe to store output
+interaction_glycA_hemisphere <- data.frame(thickness=character(),  interaction_p=numeric(), interaction_p_adjust=numeric())
+
+for (i in 1:33){
+  
+  ## Remove outliers - IQR method
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_thickness_FIDs[i]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_thickness_FIDs[i]] %in% outliers),]
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_thickness_FIDs[i +33]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_volume_outliers_removed <- UKB_imaging_glycA_cortical_volume_outliers_removed[-which(UKB_imaging_glycA_cortical_volume_outliers_removed[,cortical_thickness_FIDs[i+33]] %in% outliers),]
+  
+  
+  ## Select essential columns
+  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_volume_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
+                                                                              cortical_thickness_FIDs[i], cortical_thickness_FIDs[i +33])]
+  
+  ## Convert short dataframe to long format
+  UKB_glycA_DK_small_long <- reshape(UKB_glycA_DK_small, 
+                                     varying = c(cortical_thickness_FIDs[i], cortical_thickness_FIDs[i + 33]), 
+                                     v.names = "thickness",
+                                     timevar = "Region", 
+                                     times = c(cortical_thickness_FIDs[i], cortical_thickness_FIDs[i + 33]), 
+                                     direction = "long")
+  
+  ## Add column indicating hemisphere
+  UKB_glycA_DK_small_long$Hemisphere <- NA
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_thickness_FIDs[i]] <- "left"
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_thickness_FIDs[i + 33]] <- "right"
+  
+  ## Carry out interaction analysis
+  lm1 <- lm(thickness ~ glycA_1 * Hemisphere + sex + age + age + age_squared + BMI + ICV + assessment_centre_first_imaging, data = UKB_glycA_DK_small_long)
+  
+  interaction_glycA_hemisphere[i,"thickness"] <- (cortical_thickness_FIDs)[i]
+  interaction_glycA_hemisphere[i,"interaction_p"] <- summary(lm1)[["coefficients"]]["glycA_1:Hemisphereright", "Pr(>|t|)"]
+  interaction_glycA_hemisphere[i,"interaction_p_adjust"] <- p.adjust(interaction_glycA_hemisphere[i,"interaction_p"], n = 33, method = "fdr")
+}
+## No hemisphere interaction found between glycA_1 and thicknesss
+
+## Run lme analysis to look at the effects of CRP PRS on cortical thickness
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Generate dataframe to record P-values, CIs and beta coefficients
+lme_cortical_thickness_glycA <- data.frame(mod_name=character(), beta=numeric(), std=numeric(), t.value=numeric(), p.value=numeric(),
+                                      Lower_95CI=numeric(), Upper_95CI=numeric())
+
+## Generate ls.mod
+ls.mod.glycA.thickness <- data.frame(Dep ="thickness",
+                                Factor =  "glycA_1",
+                                Covariates = "sex + age + age_squared + BMI + ICV + assessment_centre_first_imaging + Hemisphere",
+                                Model = "lme")
+
+
+## Iterate through each cortical thickness and run glm 
+for (i in 1:33){
+  
+  ## Remove outliers - IQR method
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_thickness_FIDs[i]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_thickness_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_cortical_thickness_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,cortical_thickness_FIDs[i]] %in% outliers),]
+  outliers <- boxplot(UKB_imaging_glycA[,cortical_thickness_FIDs[i +33]], plot=FALSE)$out
+  UKB_imaging_glycA_cortical_thickness_outliers_removed <- UKB_imaging_glycA_cortical_thickness_outliers_removed[-which(UKB_imaging_glycA_cortical_thickness_outliers_removed[,cortical_thickness_FIDs[i+33]] %in% outliers),]
+  
+  ## Select essential columns
+  UKB_glycA_DK_small <- UKB_imaging_glycA_cortical_thickness_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
+                                                                            cortical_thickness_FIDs[i], cortical_thickness_FIDs[i +33])]
+  
+  ## Convert short dataframe to long format
+  UKB_glycA_DK_small_long <- reshape(UKB_glycA_DK_small, 
+                                     varying = c(cortical_thickness_FIDs[i], cortical_thickness_FIDs[i + 33]), 
+                                     v.names = "thickness",
+                                     timevar = "Region", 
+                                     times = c(cortical_thickness_FIDs[i], cortical_thickness_FIDs[i + 33]), 
+                                     direction = "long")
+  
+  ## Add column indicating hemisphere
+  UKB_glycA_DK_small_long$Hemisphere <- NA
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_thickness_FIDs[i]] <- "left"
+  UKB_glycA_DK_small_long$Hemisphere[UKB_glycA_DK_small_long$Region == cortical_thickness_FIDs[i + 33]] <- "right"
+  
+  ## Generate ls.mode
+  
+  ## Rum lme and get output (BTEA, SD, T, P, 95% CIs)
+  output <- try(run_model(ls.mod.glycA.thickness, UKB_glycA_DK_small, UKB_glycA_DK_small_long))
+  ## Add region field ID
+  lme_cortical_region_iterate_glycA <- cbind(data_frame(region_field_ID = paste0(cortical_thickness_FIDs[i],"_",cortical_thickness_FIDs[i + 33])), output)
+  ## Adjust P value for multiple comparisons (FDR)
+  lme_cortical_region_iterate_glycA$p.value.adjust <- p.adjust(lme_cortical_region_iterate_glycA$p.value, n = 33, method = "fdr")
+  ## Add cortical thickness name
+  cortical_thickness <- UKB_imaging_DKW_key$cortical_volume[grepl(substring(lme_cortical_region_iterate_glycA$region_field_ID, 3,7), UKB_imaging_DKW_key$feild_ID)]
+  cortical_thickness_sub <- sub(("\\(.*"), "", cortical_thickness)
+  lme_cortical_region_iterate_glycA$cortical_thickness <- str_to_title(sub(("Mean thickness of "), "", cortical_thickness_sub))
+  ## Append to data frame
+  lme_cortical_thickness_glycA <- rbind(lme_cortical_region_iterate_glycA, lme_cortical_thickness_glycA)
+}
+
+
+## Plot results
+lme_cortical_thickness_glycA$cortical_thickness = with(lme_cortical_thickness_glycA, reorder(cortical_thickness, beta))
+
+jpeg("~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/association_glycA_regional_cortical_structures.jpg")
+
+ggplot(data=lme_cortical_thickness_glycA, aes(x=cortical_thickness, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("Label") + ylab("Mean (95% CI)") +
+  theme_bw() +
+  labs(title = "Association of GlycA and Regional Cortical thicknesss")
+
+dev.off()
+
+write.csv(lme_cortical_thickness_glycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glm_cortical_thickness_glycA.csv",
           quote = FALSE, row.names = FALSE)
 
 
@@ -593,6 +1204,7 @@ for (i in seq(1, 23, by=2)){
   interaction_glycA_hemisphere_FA <- rbind(interaction_glycA_hemisphere_FA, interaction_glycA_FA)
 }
 
+## Hemisphere interaction between association of acoustic radiation(25488 and 25489) and GlycA
 
 ## Run linear mixed effect model analysis to look at the effect of glycA on repeat measures (hemispheres) of FA values
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -607,7 +1219,7 @@ ls.mod.glycA <- data.frame(Dep ="FA",
 
 ## Iterate through each bilateral FA tract and run lme 
 ## Skip first two FA measurements as significant hemisphere interaction was found
-for (i in seq(1, 23, by=2)){
+for (i in seq(3, 23, by=2)){
   
   ## Remove outliers - IQR method
   outliers <- boxplot(UKB_imaging_glycA[,FA_bilateral_FIDs[i]], plot=FALSE)$out
@@ -618,7 +1230,7 @@ for (i in seq(1, 23, by=2)){
   
   ## Select essential columns
   UKB_glycA_DK_small <- UKB_imaging_glycA_FA_tracts_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
-                                             FA_bilateral_FIDs[i + 1], FA_bilateral_FIDs[i])]
+                                                                        FA_bilateral_FIDs[i + 1], FA_bilateral_FIDs[i])]
   
   ## Convert short dataframe to long format
   UKB_glycA_DK_small_long <- reshape(UKB_glycA_DK_small, 
@@ -650,34 +1262,41 @@ for (i in seq(1, 23, by=2)){
 }
 
 
-# ## Carry out GLM on each hemispheric measurement of FA in tract acoustic radiation
-# for (i in 1:2){
-#   
-#   ## Scale FA value in unilateral tracts
-#   UKB_imaging_glycA[,FA_bilateral_FIDs[i]] <- scale(UKB_imaging_glycA[,FA_bilateral_FIDs[i]])
-#   ## Run glm
-#   mod <- paste0("glycA_1~ ",FA_bilateral_FIDs[i], "+ sex + BMI + assessment_centre_first_imaging + age + age_squared + ICV")
-#   glm1 <- glm(as.formula(mod), data = UKB_imaging_glycA)
-#   
-#   
-#   lme_FA_values_glycA[10 + i,"region_field_ID"] <- FA_bilateral_FIDs[i]
-#   lme_FA_values_glycA[10 + i, "beta"] <- summary(glm1)[["coefficients"]][FA_bilateral_FIDs[i], "Estimate"]
-#   lme_FA_values_glycA[10 + i, "std"] <- summary(glm1)[["coefficients"]][FA_bilateral_FIDs[i], "Std. Error"]
-#   lme_FA_values_glycA[10 + i, "p.value"] <- summary(glm1)[["coefficients"]][FA_bilateral_FIDs[i], "Pr(>|t|)"]
-#   lme_FA_values_glycA[10 + i, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)[FA_bilateral_FIDs[i],]
-#   lme_FA_values_glycA[10 + i, "p.value.adjust"] <- p.adjust(lme_FA_values_glycA[10 + i, "p.value"], method = "fdr", n = 13)
-#   
-#   FA_value <- UKB_imaging_FA_key$FA_value[grepl(substring(lme_FA_values_glycA$region_field_ID[10 + i], 3,7), UKB_imaging_FA_key$feild_ID)]
-#   lme_FA_values_glycA$FA_tract[10 + i] <- str_to_title(sub(("Weighted-mean FA in tract "), "", FA_value))
-#   
-#   
-# }
+# Carry out GLM on each hemispheric measurement of FA in tract acoustic radiation
+
+glm_FA_values_glycA <- data.frame(region_field_ID=character(), beta=numeric(), std=numeric(), p.value=numeric(),
+                                             Lower_95CI=numeric(), Upper_95CI=numeric())
+
+for (i in 1:2){
+  
+  ## Remove outliers - IQR method
+  outliers <- boxplot(UKB_imaging_glycA[,FA_bilateral_FIDs[i]], plot=FALSE)$out
+  UKB_imaging_glycA_FA_tracts_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_FA_tracts_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,FA_bilateral_FIDs[i]] %in% outliers),]
+
+  ## Scale FA value in unilateral tracts
+  UKB_imaging_glycA_FA_tracts_outliers_removed[,FA_bilateral_FIDs[i]] <- scale(UKB_imaging_glycA_FA_tracts_outliers_removed[,FA_bilateral_FIDs[i]])
+  ## Run glm
+  mod <- paste0(FA_bilateral_FIDs[i], "~ glycA_1", "+ sex + BMI + assessment_centre_first_imaging + age + age_squared + ICV")
+  glm1 <- glm(as.formula(mod), data = UKB_imaging_glycA_FA_tracts_outliers_removed)
+
+
+  glm_FA_values_glycA[i,"region_field_ID"] <- FA_bilateral_FIDs[i]
+  glm_FA_values_glycA[i, "beta"] <- summary(glm1)[["coefficients"]]["glycA_1", "Estimate"]
+  glm_FA_values_glycA[i, "std"] <- summary(glm1)[["coefficients"]]["glycA_1", "Std. Error"]
+  glm_FA_values_glycA[i, "p.value"] <- summary(glm1)[["coefficients"]]["glycA_1", "Pr(>|t|)"]
+  glm_FA_values_glycA[i, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)["glycA_1",]
+  glm_FA_values_glycA[i, "p.value.adjust"] <- p.adjust(glm_FA_values_glycA[i, "p.value"], method = "fdr", n = 16)
+
+  FA_value <- UKB_imaging_FA_key$FA_value[grepl(substring(glm_FA_values_glycA$region_field_ID[i], 3,7), UKB_imaging_FA_key$feild_ID)]
+  glm_FA_values_glycA$FA_tract[i] <- str_to_title(sub(("Weighted-mean FA in tract "), "", FA_value))
+}
 
 
 ## Carry out GLM on unilateral FA tracts
 
 ## Create new dataframe to store glm output
-lme_FA_values_glycA_unilateral <- data.frame(region_field_ID=character(), beta=numeric(), std=numeric(), p.value=numeric(),
+glm_FA_values_glycA_unilateral <- data.frame(region_field_ID=character(), beta=numeric(), std=numeric(), p.value=numeric(),
                                              Lower_95CI=numeric(), Upper_95CI=numeric()) 
 
 for (i in 1:3){
@@ -695,15 +1314,15 @@ for (i in 1:3){
   glm1 <- glm(as.formula(mod), data = UKB_imaging_glycA)
   
   
-  lme_FA_values_glycA_unilateral[i,"region_field_ID"] <- FA_unilateral_FIDs[i]
-  lme_FA_values_glycA_unilateral[i, "beta"] <- summary(glm1)[["coefficients"]][FA_unilateral_FIDs[i], "Estimate"]
-  lme_FA_values_glycA_unilateral[i, "std"] <- summary(glm1)[["coefficients"]][FA_unilateral_FIDs[i], "Std. Error"]
-  lme_FA_values_glycA_unilateral[i, "p.value"] <- summary(glm1)[["coefficients"]][FA_unilateral_FIDs[i], "Pr(>|t|)"]
-  lme_FA_values_glycA_unilateral[i, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)[FA_unilateral_FIDs[i],]
-  lme_FA_values_glycA_unilateral[i, "p.value.adjust"] <- p.adjust(lme_FA_values_glycA_unilateral[i, "p.value"], method = "fdr", n = 15)
+  glm_FA_values_glycA_unilateral[i,"region_field_ID"] <- FA_unilateral_FIDs[i]
+  glm_FA_values_glycA_unilateral[i, "beta"] <- summary(glm1)[["coefficients"]][FA_unilateral_FIDs[i], "Estimate"]
+  glm_FA_values_glycA_unilateral[i, "std"] <- summary(glm1)[["coefficients"]][FA_unilateral_FIDs[i], "Std. Error"]
+  glm_FA_values_glycA_unilateral[i, "p.value"] <- summary(glm1)[["coefficients"]][FA_unilateral_FIDs[i], "Pr(>|t|)"]
+  glm_FA_values_glycA_unilateral[i, c("Lower_95CI", "Upper_95CI")] <- confint(glm1)[FA_unilateral_FIDs[i],]
+  glm_FA_values_glycA_unilateral[i, "p.value.adjust"] <- p.adjust(glm_FA_values_glycA_unilateral[i, "p.value"], method = "fdr", n = 16)
   
-  FA_value <- UKB_imaging_FA_key$FA_value[grepl(substring(lme_FA_values_glycA_unilateral$region_field_ID[i], 3,7), UKB_imaging_FA_key$feild_ID)]
-  lme_FA_values_glycA_unilateral$FA_tract[i] <- str_to_title(sub(("Weighted-mean FA in tract "), "", FA_value))
+  FA_value <- UKB_imaging_FA_key$FA_value[grepl(substring(glm_FA_values_glycA_unilateral$region_field_ID[i], 3,7), UKB_imaging_FA_key$feild_ID)]
+  glm_FA_values_glycA_unilateral$FA_tract[i] <- str_to_title(sub(("Weighted-mean FA in tract "), "", FA_value))
 }
 
 ## Plot results
@@ -724,10 +1343,27 @@ p1 <- ggplot(data=lme_FA_values_glycA, aes(x=FA_tract, y=beta, ymin=Lower_95CI, 
 write.csv(lme_FA_values_glycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_FA_bilateral_tracts.csv",
           quote = FALSE, row.names = FALSE)
 
-## Plot effect of CRP PRS on unilateral FA tracts
-lme_FA_values_glycA_unilateral$FA_tract = with(lme_FA_values_glycA_unilateral, reorder(FA_tract, beta))
+## Plot effect of CRP PRS on bilateral FA tracts where there is a hemisphere interaction
+glm_FA_values_glycA$FA_tract = with(glm_FA_values_glycA, reorder(FA_tract, beta))
 
-p2 <- ggplot(data=lme_FA_values_glycA_unilateral, aes(x=FA_tract, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+p2 <- ggplot(data=glm_FA_values_glycA, aes(x=FA_tract, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+  geom_pointrange() + 
+  geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+  coord_flip() +  # flip coordinates (puts labels on y axis)
+  xlab("Bilateral FA Tracts") + ylab("Mean (95% CI)") +
+  theme_bw() +
+  ylim(-0.6, 0.6) +
+  labs(title ="Association of GlycA and FA Bilateral Tracts (Hemisphere Interaction)")
+
+
+write.csv(glm_FA_values_glycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_FA_bilateral_tracts_hemisphere_interaction.csv",
+          quote = FALSE, row.names = FALSE)
+
+
+## Plot effect of CRP PRS on unilateral FA tracts
+glm_FA_values_glycA_unilateral$FA_tract = with(glm_FA_values_glycA_unilateral, reorder(FA_tract, beta))
+
+p3 <- ggplot(data=glm_FA_values_glycA_unilateral, aes(x=FA_tract, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
   geom_pointrange() + 
   geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
   coord_flip() +  # flip coordinates (puts labels on y axis)
@@ -737,17 +1373,18 @@ p2 <- ggplot(data=lme_FA_values_glycA_unilateral, aes(x=FA_tract, y=beta, ymin=L
   labs(title ="Association of GlycA and FA Unilateral Tracts")
 
 layout <- c(
-  area(t = 1, l = 1, b = 3, r = 4),
+  area(t = 1, l = 1, b = 2, r = 4),
+  area(t = 3, l = 1, b = 3, r = 4),
   area(t = 4, l = 1, b = 4, r = 4))
 
 jpeg("~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/association_glycA_FA_tracts.jpg")
 
-p1 / p2 + 
+p1 / p2 / p3 + 
   plot_layout(design = layout)
 
 dev.off()
 
-write.csv(lme_FA_values_glycA_unilateral, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_FA_unilateral_tracts.csv",
+write.csv(glm_FA_values_glycA_unilateral, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_FA_unilateral_tracts.csv",
           quote = FALSE, row.names = FALSE)
 
 ## Run interaction analysis to see if there is an effect modification between glycA and hemisphere on MD values
@@ -822,7 +1459,7 @@ for (i in seq(1, 23, by=2)){
   
   ## Select essential columns
   UKB_glycA_DK_small <- UKB_imaging_glycA_MD_tracts_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
-                                             MD_bilateral_FIDs[i + 1], MD_bilateral_FIDs[i])]
+                                                                        MD_bilateral_FIDs[i + 1], MD_bilateral_FIDs[i])]
   
   ## Convert short dataframe to long format
   UKB_glycA_DK_small_long <- reshape(UKB_glycA_DK_small, 
@@ -928,6 +1565,7 @@ dev.off()
 
 write.csv(lme_MD_values_glycA_unilateral, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_MD_unilateral_tracts.csv",
           quote = FALSE, row.names = FALSE)
+
 
 
 ## Separate DTI into General DTI Measures:
@@ -1337,15 +1975,15 @@ for (i in seq(1,14,2)){
   
   ## Remove outliers - IQR method
   outliers <- boxplot(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i]], plot=FALSE)$out
-  UKB_imaging_glycA_subcortical_regions_outliers_removed <- UKB_imaging_glycA
-  UKB_imaging_glycA_subcortical_regions_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i]] %in% outliers),]
+  UKB_imaging_glycA_subcortical_volume_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_subcortical_volume_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i]] %in% outliers),]
   
   outliers <- boxplot(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i + 1]], plot=FALSE)$out
-  UKB_imaging_glycA_subcortical_regions_outliers_removed <- UKB_imaging_glycA_subcortical_regions_outliers_removed[-which(UKB_imaging_glycA_subcortical_regions_outliers_removed[,sub_cortical_volume_FIDs[i + 1]] %in% outliers),]
+  UKB_imaging_glycA_subcortical_volume_outliers_removed <- UKB_imaging_glycA_subcortical_volume_outliers_removed[-which(UKB_imaging_glycA_subcortical_volume_outliers_removed[,sub_cortical_volume_FIDs[i + 1]] %in% outliers),]
   
   
   ## Select essential columns
-  UKB_imaging_glycA_small <- UKB_imaging_glycA_subcortical_regions_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
+  UKB_imaging_glycA_small <- UKB_imaging_glycA_subcortical_volume_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
                                                                               sub_cortical_volume_FIDs[i], sub_cortical_volume_FIDs[i + 1])]
   
   ## Convert short dataframe to long format
@@ -1373,70 +2011,63 @@ for (i in seq(1,14,2)){
 interaction_glycA_hemisphere
 ## No interaction found between glycA and hemisphere on volumes
 
-## Run linear mixed effect model analysis to look at the effect of GlycA on repeat measures (hemispheres) of subcorical volumes
+## Run generalized linear model analysis to look at the effect of GlycA on subcorical volumes
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Generate dataframe to record P-values, CIs and beta coefficients
-lme_subcortical_regions_GlycA<- data.frame(mod_name=character(), beta=numeric(), std=numeric(), t.value=numeric(), p.value=numeric(),
+glm_subcortical_volume_GlycA<- data.frame(mod_name=character(), beta=numeric(), std=numeric(), t.value=numeric(), p.value=numeric(),
                                               Lower_95CI=numeric(), Upper_95CI=numeric())
-## Generate ls.mod
-ls.mod.PRS <- data.frame(Dep ="Volume",
-                         Factor =  "glycA_1",
-                         Covariates = "sex + age  + age_squared + BMI + ICV + assessment_centre_first_imaging + Hemisphere",
-                         Model = "lme")
 
-
-## Iterate through each cortical volume and run lme 
+## Iterate through each cortical volume and run glm 
 for (i in seq(1,14,2)){
   
   ## Remove outliers - IQR method
   outliers <- boxplot(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i]], plot=FALSE)$out
-  UKB_imaging_glycA_subcortical_regions_outliers_removed <- UKB_imaging_glycA
-  UKB_imaging_glycA_subcortical_regions_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i]] %in% outliers),]
-  
+  UKB_imaging_glycA_subcortical_volume_outliers_removed <- UKB_imaging_glycA
+  UKB_imaging_glycA_subcortical_volume_outliers_removed <- UKB_imaging_glycA[-which(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i]] %in% outliers),]
   outliers <- boxplot(UKB_imaging_glycA[,sub_cortical_volume_FIDs[i + 1]], plot=FALSE)$out
-  UKB_imaging_glycA_subcortical_regions_outliers_removed <- UKB_imaging_glycA_subcortical_regions_outliers_removed[-which(UKB_imaging_glycA_subcortical_regions_outliers_removed[,sub_cortical_volume_FIDs[i + 1]] %in% outliers),]
+  UKB_imaging_glycA_subcortical_volume_outliers_removed <- UKB_imaging_glycA_subcortical_volume_outliers_removed[-which(UKB_imaging_glycA_subcortical_volume_outliers_removed[,sub_cortical_volume_FIDs[i + 1]] %in% outliers),]
   
+  ## Sum hemispheres
+  UKB_imaging_glycA_subcortical_volume_outliers_removed$total_volume <- rowSums(UKB_imaging_glycA_subcortical_volume_outliers_removed[,c(sub_cortical_volume_FIDs[i],sub_cortical_volume_FIDs[i + 1])], na.rm = FALSE)
   
-  ## Select essential columns
-  UKB_imaging_glycA_small <- UKB_imaging_glycA_subcortical_regions_outliers_removed[,c("f.eid", "glycA_1", "sex", "age", "age_squared", "BMI", "ICV", "assessment_centre_first_imaging",
-                                                                                       sub_cortical_volume_FIDs[i], sub_cortical_volume_FIDs[i + 1])]
+  ## Scale summed volume
+  UKB_imaging_glycA_subcortical_volume_outliers_removed$total_volume <- scale(UKB_imaging_glycA_subcortical_volume_outliers_removed$total_volume)
   
-  ## Convert short dataframe to long format
-  UKB_imaging_glycA_small_long <- reshape(UKB_imaging_glycA_small, 
-                                          varying = c(sub_cortical_volume_FIDs[i], sub_cortical_volume_FIDs[i + 1]), 
-                                          v.names = "Volume",
-                                          timevar = "Region", 
-                                          times = c(sub_cortical_volume_FIDs[i], sub_cortical_volume_FIDs[i + 1]), 
-                                          direction = "long")
+  ## Rum glm and get output (BTEA, SD, T, P, 95% CIs)
+  fit <- glm(total_volume ~ glycA_1 + sex + age + age_squared + BMI + ICV + assessment_centre_first_imaging, data = UKB_imaging_glycA_subcortical_volume_outliers_removed)
   
-  ## Add column indicating hemisphere
-  UKB_imaging_glycA_small_long$Hemisphere <- NA
-  UKB_imaging_glycA_small_long$Hemisphere[UKB_imaging_glycA_small_long$Region == sub_cortical_volume_FIDs[i]] <- "left"
-  UKB_imaging_glycA_small_long$Hemisphere[UKB_imaging_glycA_small_long$Region == sub_cortical_volume_FIDs[i + 1]] <- "right"
+  tmp.ci = confint(fit) %>% as.data.frame %>% 
+    select(Lower_95CI=`2.5 %`,Upper_95CI=`97.5 %`) %>% 
+    head(2) %>%
+    tail(1)
   
-  ## Generate ls.mode
+  tmp.res = summary(fit)$coefficients %>% 
+    as.data.frame %>% 
+    select(beta=Estimate,std=`Std. Error`,t.value=`t value`,p.value=`Pr(>|t|)`) %>% 
+    head(2) %>%
+    tail(1) %>%
+    mutate(mod_name = paste0("Cortical Volume",'~',"GlycA"),tmp.ci) %>% 
+    select(mod_name, everything())
   
-  ## Rum lme and get output (BTEA, SD, T, P, 95% CIs)
-  try(output <- run_model(ls.mod.PRS, UKB_imaging_glycA_small, UKB_imaging_glycA_small_long))
   ## Add region field ID
-  lme_subcortical_regions <- cbind(data_frame(region_field_ID = paste0(sub_cortical_volume_FIDs[i],"_",sub_cortical_volume_FIDs[i + 1])), output)
+  glm_subcortical_volume_GlycA_temp <- cbind(data_frame(region_field_ID = paste0(sub_cortical_volume_FIDs[i],"_",sub_cortical_volume_FIDs[i + 1])), tmp.res)
   ## Adjust P value for multiple comparisons (FDR)
-  lme_subcortical_regions$p.value.adjust <- p.adjust(lme_subcortical_regions$p.value, n = 7, method = "fdr")
+  glm_subcortical_volume_GlycA_temp$p.value.adjust <- p.adjust(glm_subcortical_volume_GlycA_temp$p.value, n = 7, method = "fdr")
   ## Add cortical volume name
-  subcortical_volume <- UKB_subcortical_key$subcortical_volume[grepl(substring(lme_subcortical_regions$region_field_ID, 3,7), UKB_subcortical_key$feild_ID)]
+  subcortical_volume <- UKB_subcortical_key$subcortical_volume[grepl(substring(glm_subcortical_volume_GlycA_temp$region_field_ID, 3,7), UKB_subcortical_key$feild_ID)]
   subcortical_volume_sub <- sub(("\\(.*"), "", subcortical_volume)
-  lme_subcortical_regions$subcortical_volume <- str_to_title(sub(("Volume of "), "", subcortical_volume_sub))
+  glm_subcortical_volume_GlycA_temp$subcortical_volume <- str_to_title(sub(("Volume of "), "", subcortical_volume_sub))
   ## Append to data frame
-  lme_subcortical_regions_GlycA <- rbind(lme_subcortical_regions, lme_subcortical_regions_GlycA)
+  glm_subcortical_volume_GlycA <- rbind(glm_subcortical_volume_GlycA_temp, glm_subcortical_volume_GlycA)
 }
 
 
 ## Plot effects of CRP PRS on regional sub cortical volumes
-lme_subcortical_regions_GlycA$subcortical_volume = with(lme_subcortical_regions_GlycA, reorder(subcortical_volume, beta))
+glm_subcortical_volume_GlycA$subcortical_volume = with(glm_subcortical_volume_GlycA, reorder(subcortical_volume, beta))
 
 jpeg("~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/association_glycA_subcortical_volume.jpg")
 
-ggplot(data=lme_subcortical_regions_GlycA, aes(x=subcortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
+ggplot(data=glm_subcortical_volume_GlycA, aes(x=subcortical_volume, y=beta, ymin=Lower_95CI, ymax=Upper_95CI)) +
   geom_pointrange() + 
   geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
   coord_flip() +  # flip coordinates (puts labels on y axis)
@@ -1446,6 +2077,6 @@ ggplot(data=lme_subcortical_regions_GlycA, aes(x=subcortical_volume, y=beta, ymi
 
 dev.off()
 
-write.csv(lme_subcortical_regions_GlycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_subcortical.csv", quote = F, row.names = F)
+write.csv(glm_subcortical_volume_GlycA, "~/Desktop/PhD/projects/UKBChronicPainDepressionGlycA/output/imaging_association_results/glycA_subcortical.csv", quote = F, row.names = F)
 
 
