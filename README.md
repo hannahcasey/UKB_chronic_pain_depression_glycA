@@ -6,3 +6,6 @@ Phenotypic association of glycA with chronic pain, depression and comorbid chron
 
 ## Script:glycA_imaging_assoc.R
 Association of glycA with imaging features in UK Biobank
+
+## Script: glycA_imaging_CPMDD_SEM.Rmd
+Mediation analysis looking at the mediating effects of imaging features (those already shown to be associated with both glycA and CP+MDD+) on the association between glycA and chronic pain, depression and CP+MDD+
